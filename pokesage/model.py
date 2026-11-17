@@ -17,6 +17,8 @@ SPREADS = {
     "물리 내구형 (HP·방어 252)": ({"hp": 252, "def": 252, "spd": 4}, {"def": 1.1}),
     "특수 내구형 (HP·특방 252)": ({"hp": 252, "spd": 252, "def": 4}, {"spd": 1.1}),
     "무투자": ({}, {}),
+    "내구 물리형 (HP·공격 252)": ({"hp": 252, "atk": 252, "def": 4}, {"atk": 1.1}),
+    "내구 특수형 (HP·특공 252)": ({"hp": 252, "spa": 252, "spd": 4}, {"spa": 1.1}),
 }
 DEFAULT_SPREAD = next(iter(SPREADS))
 
@@ -48,6 +50,7 @@ class Mon:
     moves: list[str] = field(default_factory=list)
     hp_pct: int = 100
     status: str = "없음"
+    item: str = "없음"
     stages: dict[str, int] = field(default_factory=lambda: {k: 0 for k in STAT_KO})
 
     def __post_init__(self):
