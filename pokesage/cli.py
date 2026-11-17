@@ -182,7 +182,7 @@ def run(f: Form | None = None, save_dir: str | None = "kibo") -> list[str]:
     f.out("PokeSage - 포챔스 턴별 최선수 추천 (싱글 배틀)")
     team = build_team(f)
     opp_size = f.number("상대 파티 크기", 1, 6, len(team))
-    depth, samples, k = list(LEVELS.values())[f.choose("탐색 강도", list(LEVELS), 1)]
+    depth, samples, k = list(LEVELS.values())[f.choose("탐색 강도", list(LEVELS), 2)]
     greedy = list(STYLES.values())[f.choose("상대 성향", list(STYLES))]
     active = 0
     opps: dict[str, OppRec] = {}  # 지금까지 본 상대 포켓몬
