@@ -9,14 +9,21 @@ from .advisor import Option, kibo_line
 from .belief import Belief, OppMon, make_worlds
 from .dex import ITEMS, MOVES, POKEMON
 from .model import SPREADS, STATUS, STAT_KO, Mon
-from .search import best_replacement, recommend
+from .search import GREEDY, best_replacement, recommend
 from .sim import BMon, damage_rolls, speed
 
-# 탐색 강도: 이름 -> (깊이, 칸당 표본 수, 상대 세트 후보 수)
+# 탐색 강도: 이름 -> (깊이, 칸당 표본 수, 상대 세트 후보 수). 시간은 3대3 첫 턴 실측 기준.
 LEVELS = {
-    "빠름 (2턴 앞, 1초 안팎)": (2, 2, 3),
-    "보통 (2턴 앞, 표본 증가, 수 초)": (2, 6, 5),
-    "정밀 (3턴 앞, 수십 초 이상)": (3, 2, 3),
+    "빠름 (2턴 앞, 0.1초 안팎)": (2, 2, 3),
+    "보통 (2턴 앞, 표본·세트 후보 증가, 1초 안팎)": (2, 6, 5),
+    "정밀 (3턴 앞, 수 초)": (3, 4, 5),
+    "최대 (4턴 앞, 수십 초)": (4, 1, 3),
+}
+# 상대 성향: 이름 -> 상대가 '뻔한 수'(최대 피해 기술)를 둘 것으로 보는 확률
+STYLES = {
+    f"정석형 (최대 피해 기술 위주, 권장 {GREEDY:g})": GREEDY,
+    "심리전형 (교체·읽기 많음, 0.3)": 0.3,
+    "최적 상대 가정 (균형 전략, 0)": 0.0,
 }
 
 Ask = Callable[[str], str]
@@ -176,6 +183,7 @@ def run(f: Form | None = None, save_dir: str | None = "kibo") -> list[str]:
     team = build_team(f)
     opp_size = f.number("상대 파티 크기", 1, 6, len(team))
     depth, samples, k = list(LEVELS.values())[f.choose("탐색 강도", list(LEVELS), 1)]
+    greedy = list(STYLES.values())[f.choose("상대 성향", list(STYLES))]
     active = 0
     opps: dict[str, OppRec] = {}  # 지금까지 본 상대 포켓몬
     cur: str | None = None        # 상대 선두
@@ -195,7 +203,7 @@ def run(f: Form | None = None, save_dir: str | None = "kibo") -> list[str]:
                 seen = [r for r in opps.values() if r.mon.alive]
                 worlds = make_worlds([to_bmon(m) for m in team], active, [r.view() for r in seen],
                                      seen.index(opps[cur]), max(0, opp_size - len(opps)), k)
-                default = alive.index(best_replacement(worlds))
+                default = alive.index(best_replacement(worlds, greedy=greedy))
                 labels[default] += f"  ← 추천 (상대 {cur} 기준)"
             active = alive[f.choose("내 선두 포켓몬 (기절한 포켓몬 교체)", labels, default)]
         else:
@@ -237,7 +245,7 @@ def run(f: Form | None = None, save_dir: str | None = "kibo") -> list[str]:
         worlds = make_worlds([to_bmon(m) for m in team], active, [r.view() for r in seen],
                              seen.index(rec), max(0, opp_size - len(opps)), k)
         me_b = worlds[0][1].mon(0)
-        ranked = [describe(r, me_b, team, worlds[0][1]) for r in recommend(worlds, depth, samples)]
+        ranked = [describe(r, me_b, team, worlds[0][1]) for r in recommend(worlds, depth, samples, greedy=greedy)]
         best = ranked[0]
         guess = " · ".join(f"{h.spread.split(' (')[0]}/{h.item} {p:.0%}" for p, h in rec.belief.top(3))
         f.out(f"\n상대 {cur} 추정 세트: {guess}")

@@ -14,7 +14,7 @@ from .dex import MOVE_FX, MOVES
 from .sim import State, damage, legal, pending, stalled, step, switch_in, winner
 
 
-GREEDY = 0.0  # 상대가 '뻔한 수'(최대 피해 기술)를 둘 것으로 보는 기본 확률
+GREEDY = 0.8  # 상대가 '뻔한 수'(최대 피해 기술)를 둘 것으로 보는 기본 확률(아레나 측정으로 결정)
 
 
 class SearchRng(random.Random):
