@@ -9,7 +9,7 @@ from .advisor import Option, kibo_line
 from .belief import Belief, OppMon, make_worlds
 from .dex import ITEMS, MOVES, POKEMON
 from .model import SPREADS, STATUS, STAT_KO, Mon
-from .search import recommend
+from .search import best_replacement, recommend
 from .sim import BMon, damage_rolls, speed
 
 # 탐색 강도: 이름 -> (깊이, 칸당 표본 수, 상대 세트 후보 수)
@@ -189,7 +189,15 @@ def run(f: Form | None = None, save_dir: str | None = "kibo") -> list[str]:
             f.out("내 포켓몬이 모두 기절했습니다.")
             break
         if not team[active].alive:
-            active = alive[f.choose("내 선두 포켓몬 (기절한 포켓몬 교체)", [team[i].label() for i in alive])]
+            labels = [team[i].label() for i in alive]
+            default = 0
+            if cur is not None and opps[cur].mon.alive:
+                seen = [r for r in opps.values() if r.mon.alive]
+                worlds = make_worlds([to_bmon(m) for m in team], active, [r.view() for r in seen],
+                                     seen.index(opps[cur]), max(0, opp_size - len(opps)), k)
+                default = alive.index(best_replacement(worlds))
+                labels[default] += f"  ← 추천 (상대 {cur} 기준)"
+            active = alive[f.choose("내 선두 포켓몬 (기절한 포켓몬 교체)", labels, default)]
         else:
             labels = [f"{team[i].label()}{' (현재)' if i == active else ''}" for i in alive]
             active = alive[f.choose("내 선두 포켓몬", labels, alive.index(active))]

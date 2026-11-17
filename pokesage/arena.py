@@ -82,9 +82,9 @@ class SearchAgent:
         return best_replacement(worlds[:self.k], 1, rng.random(), self.greedy)
 
 
-def make_agent(name: str, depth: int = 2, samples: int = 2, worlds: int = 3):
+def make_agent(name: str, depth: int = 2, samples: int = 2, worlds: int = 3, greedy: float = GREEDY):
     if name == "search":
-        return SearchAgent(depth, samples, worlds)
+        return SearchAgent(depth, samples, worlds, greedy)
     return {"random": RandomAgent, "maxdmg": MaxDamageAgent, "heuristic": HeuristicAgent}[name]()
 
 
@@ -218,11 +218,15 @@ def main(argv=None):
     ap.add_argument("--depth", type=int, default=2, help="search 에이전트의 탐색 깊이")
     ap.add_argument("--samples", type=int, default=2, help="행렬 칸당 표본 수")
     ap.add_argument("--worlds", type=int, default=3, help="고려할 상대 세트 후보 수")
+    ap.add_argument("--greedy", type=float, default=GREEDY,
+                    help="search가 보는 '상대가 최대 피해 기술을 고를' 확률(0~1)")
     ap.add_argument("--b-depth", type=int, default=None, help="b가 search일 때의 깊이(기본: --depth)")
+    ap.add_argument("--b-greedy", type=float, default=None, help="b가 search일 때의 greedy(기본: --greedy)")
     ap.add_argument("--seed", type=int, default=0)
     o = ap.parse_args(argv)
-    a = make_agent(o.a, o.depth, o.samples, o.worlds)
-    b = make_agent(o.b, o.b_depth or o.depth, o.samples, o.worlds)
+    a = make_agent(o.a, o.depth, o.samples, o.worlds, o.greedy)
+    b = make_agent(o.b, o.b_depth or o.depth, o.samples, o.worlds,
+                   o.greedy if o.b_greedy is None else o.b_greedy)
     r = run_match(a, b, o.games, o.team_size, o.seed)
     lo, hi = r["ci95"]
     print(f"\n{r['a']} vs {r['b']}: {r['games']}판, 승률 {r['win_rate']:.1%} (95% 신뢰구간 {lo:.1%}~{hi:.1%})")
