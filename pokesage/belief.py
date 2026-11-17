@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from .dex import MOVES, SPECIES, mega_of
+from .dex import MOVES, SPECIES
 from .model import Spread
 from .sets import item_prior, likely_ability, likely_moves, spread_prior
 from .sim import NONE, BMon, State, damage_rolls, speed

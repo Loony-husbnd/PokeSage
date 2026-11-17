@@ -102,7 +102,8 @@ ABILITY_EFFECTS = set(ABSORB) | set(PINCH) | set(WEATHER_SPEED) | set(MOLD) | se
         "shedskin", "hydration", "leafguard", "liquidooze", "disguise", "stancechange", "download", "trace",
         "screencleaner", "toxicdebris", "seedsower", "sandspit", "supremeoverlord", "lightmetal",
         "heavymetal", "grasspelt", "marvelscale", "emergencyexit", "wimpout", "cursedbody", "rockhead",
-        "keeneye", "hypercutter", "bigpecks", "aromaveil", "eelevate", "electromorphosis",
+        "keeneye", "hypercutter", "bigpecks", "aromaveil", "eelevate", "electromorphosis", "cloudnine",
+        "airlock", "corrosion", "synchronize", "klutz", "comatose", "earlybird", "triage",
     }
 ITEM_EFFECTS = set(TYPE_ITEMS) | set(RESIST_BERRIES) | set(CURE_BERRIES) | set(WEATHER_ROCKS) \
     | set(TERRAIN_SEEDS) | {
@@ -1209,7 +1210,7 @@ def use_move(s: State, side: int, idx: int, rng, ev=None, acts=None, moved=None)
     mid = "struggle" if idx < 0 or idx >= len(me.moves) else me.moves[idx]
     # 상태이상·혼란
     if me.status == "잠듦":
-        me.slp -= 1
+        me.slp -= 2 if me.ability == "earlybird" else 1
         if me.slp <= 0:
             me.status = NONE
         elif mid not in ("sleeptalk", "snore"):

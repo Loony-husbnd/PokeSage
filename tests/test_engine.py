@@ -7,7 +7,7 @@ from pokesage import arena
 from pokesage.belief import Belief, OppMon, make_worlds, prior
 from pokesage.dex import ITEMS, MOVES, PLAYABLE, SPECIES
 from pokesage.model import PRESETS, Spread, calc_stats, from_evs
-from pokesage.search import SearchRng, recommend, solve
+from pokesage.search import recommend, solve
 from pokesage.sets import likely_moves
 from pokesage.sim import (BMon, State, damage, damage_rolls, legal, speed, step, switch_in, unsupported,
                           winner)
