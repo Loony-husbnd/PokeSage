@@ -1,96 +1,151 @@
-"""시드 데이터. 종족값/기술 정보는 예시이므로 포챔스 실제 데이터에 맞게 검증·확장할 것.
+"""포챔스 데이터(pokesage/data/*.json) 로더와 이름 검색.
 
-포켓몬: 이름 -> (타입, (H,A,B,C,D,S), 기본 기술 4개)
-기술:   이름 -> (타입, 분류(P 물리/S 특수/Z 변화), 위력, 명중, 우선도)
-MOVE_FX: 기술 부가 효과 (시뮬레이터용)
-  recoil 반동 비율 / self 자신 랭크 / foe 상대 랭크 / status 상태이상 / flinch 풀죽음 확률(%)
-  chance 부가 효과 확률(%, 생략 시 100) / heal 회복 비율 / knock 도구 떨어뜨리기 / sucker 기습 조건
-ABILITIES: 포켓몬 -> 특성 (시뮬레이터가 지원하는 것만)
-ITEMS: 계산에 반영되는 도구. "기타"는 계산에 영향이 없는 도구를 뜻한다.
+데이터는 tools/build_data.py가 Showdown 포챔스 모드와 PokeAPI 한국어 이름으로 만든다.
+ SPECIES[id]   = {name, ko, num, types, bs[6], abilities[], weight, base?, mega?, item?, megas?}
+ MOVES[id]     = {name, ko, type, cat(P/S/Z), bp, acc(0=필중), pri, target, flags?, secondaries?, ...}
+ ITEMS[id]     = {name, ko, megaStone?}
+ ABILITIES[id] = {name, ko}
+ LEARNSETS[id] = [기술 id, ...]
 """
+from __future__ import annotations
 
-POKEMON = {
-    "한카리아스": (("dragon", "ground"), (108, 130, 95, 80, 85, 102), ["지진", "드래곤크루", "스톤에지", "칼춤"]),
-    "어흥염": (("fire", "dark"), (95, 115, 90, 80, 90, 60), ["플레어드라이브", "탁쳐서떨어뜨리기", "인파이트", "더스트슈트"]),
-    "고릴타": (("grass",), (100, 125, 90, 60, 70, 85), ["우드해머", "탁쳐서떨어뜨리기", "인파이트", "지진"]),
-    "망나뇽": (("dragon", "flying"), (91, 134, 95, 100, 100, 80), ["신속", "드래곤크루", "지진", "용의춤"]),
-    "팬텀": (("ghost", "poison"), (60, 65, 60, 130, 75, 110), ["섀도볼", "오물폭탄", "10만볼트", "도깨비불"]),
-    "대도각참": (("dark", "steel"), (100, 135, 120, 60, 85, 50), ["탁쳐서떨어뜨리기", "기습", "아이언헤드", "인파이트"]),
-    "갸라도스": (("water", "flying"), (95, 125, 79, 60, 100, 81), ["폭포오르기", "지진", "스톤에지", "용의춤"]),
-    "리자몽": (("fire", "flying"), (78, 84, 78, 109, 85, 100), ["화염방사", "에어슬래시", "불대문자", "용성군"]),
-    "개굴닌자": (("water", "dark"), (72, 95, 67, 103, 71, 122), ["하이드로펌프", "악의파동", "냉동빔", "사이코키네시스"]),
-    "메타그로스": (("steel", "psychic"), (80, 135, 130, 95, 90, 70), ["아이언헤드", "지진", "불릿펀치", "스톤에지"]),
-    "마기라스": (("rock", "dark"), (100, 134, 110, 95, 100, 61), ["스톤에지", "탁쳐서떨어뜨리기", "지진", "인파이트"]),
-    "가디안": (("psychic", "fairy"), (68, 65, 65, 125, 115, 80), ["문포스", "사이코키네시스", "섀도볼", "명상"]),
-    "몰드류": (("ground", "steel"), (110, 135, 60, 50, 65, 88), ["지진", "아이언헤드", "스톤에지", "인파이트"]),
-}
+import difflib
+import json
+import pathlib
+import re
 
-MOVES = {
-    "지진": ("ground", "P", 100, 100, 0),
-    "드래곤크루": ("dragon", "P", 80, 100, 0),
-    "스톤에지": ("rock", "P", 100, 80, 0),
-    "아이언헤드": ("steel", "P", 80, 100, 0),
-    "플레어드라이브": ("fire", "P", 120, 100, 0),
-    "탁쳐서떨어뜨리기": ("dark", "P", 65, 100, 0),
-    "인파이트": ("fighting", "P", 120, 100, 0),
-    "더스트슈트": ("poison", "P", 120, 80, 0),
-    "우드해머": ("grass", "P", 120, 100, 0),
-    "신속": ("normal", "P", 80, 100, 2),
-    "불대문자": ("fire", "S", 110, 85, 0),
-    "섀도볼": ("ghost", "S", 80, 100, 0),
-    "오물폭탄": ("poison", "S", 90, 100, 0),
-    "10만볼트": ("electric", "S", 90, 100, 0),
-    "사이코키네시스": ("psychic", "S", 90, 100, 0),
-    "기습": ("dark", "P", 70, 100, 1),
-    "폭포오르기": ("water", "P", 80, 100, 0),
-    "냉동빔": ("ice", "S", 90, 100, 0),
-    "화염방사": ("fire", "S", 90, 100, 0),
-    "에어슬래시": ("flying", "S", 75, 95, 0),
-    "용성군": ("dragon", "S", 130, 90, 0),
-    "하이드로펌프": ("water", "S", 110, 80, 0),
-    "악의파동": ("dark", "S", 80, 100, 0),
-    "불릿펀치": ("steel", "P", 40, 100, 1),
-    "문포스": ("fairy", "S", 95, 100, 0),
-    "칼춤": ("normal", "Z", 0, 100, 0),
-    "용의춤": ("dragon", "Z", 0, 100, 0),
-    "나쁜음모": ("dark", "Z", 0, 100, 0),
-    "명상": ("psychic", "Z", 0, 100, 0),
-    "도깨비불": ("fire", "Z", 0, 85, 0),
-    "전기자석파": ("electric", "Z", 0, 90, 0),
-    "맹독": ("poison", "Z", 0, 90, 0),
-    "날개쉬기": ("flying", "Z", 0, 100, 0),
-}
+_DIR = pathlib.Path(__file__).parent / "data"
 
-MOVE_FX = {
-    "플레어드라이브": {"recoil": 1 / 3, "status": "화상", "chance": 10},
-    "우드해머": {"recoil": 1 / 3},
-    "인파이트": {"self": {"def": -1, "spd": -1}},
-    "용성군": {"self": {"spa": -2}},
-    "탁쳐서떨어뜨리기": {"knock": True},
-    "기습": {"sucker": True},
-    "아이언헤드": {"flinch": 30},
-    "에어슬래시": {"flinch": 30},
-    "폭포오르기": {"flinch": 20},
-    "악의파동": {"flinch": 20},
-    "더스트슈트": {"status": "독", "chance": 30},
-    "오물폭탄": {"status": "독", "chance": 30},
-    "불대문자": {"status": "화상", "chance": 10},
-    "화염방사": {"status": "화상", "chance": 10},
-    "10만볼트": {"status": "마비", "chance": 10},
-    "냉동빔": {"status": "얼음", "chance": 10},
-    "섀도볼": {"foe": {"spd": -1}, "chance": 20},
-    "사이코키네시스": {"foe": {"spd": -1}, "chance": 10},
-    "문포스": {"foe": {"spa": -1}, "chance": 30},
-    "칼춤": {"self": {"atk": 2}},
-    "용의춤": {"self": {"atk": 1, "spe": 1}},
-    "나쁜음모": {"self": {"spa": 2}},
-    "명상": {"self": {"spa": 1, "spd": 1}},
-    "도깨비불": {"status": "화상"},
-    "전기자석파": {"status": "마비", "type_immune": True},
-    "맹독": {"status": "맹독"},
-    "날개쉬기": {"heal": 0.5},
-}
 
-ABILITIES = {"어흥염": "위협", "갸라도스": "위협", "망나뇽": "멀티스케일"}
+def _load(name: str) -> dict:
+    return json.loads((_DIR / f"{name}.json").read_text(encoding="utf-8"))
 
-ITEMS = ("없음", "기타", "구애머리띠", "구애안경", "구애스카프", "생명의구슬", "기합의띠", "먹다남은음식")
+
+SPECIES: dict = _load("species")
+MOVES: dict = _load("moves")
+ITEMS: dict = _load("items")
+ABILITIES: dict = _load("abilities")
+LEARNSETS: dict = _load("learnsets")
+
+# 대전에 데리고 갈 수 있는 포켓몬(메가진화·전투 중 폼 제외)
+PLAYABLE = sorted((k for k, v in SPECIES.items() if not v.get("mega") and not v.get("battleOnly")),
+                  key=lambda k: (SPECIES[k]["num"], k))
+
+
+def toid(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def ko(kind: str, i: str) -> str:
+    if kind == "item" and i in ("", "other"):
+        return "기타 도구" if i == "other" else "없음"
+    table = {"species": SPECIES, "move": MOVES, "item": ITEMS, "ability": ABILITIES}[kind]
+    return table[i]["ko"] if i in table else i
+
+
+def josa(word: str, pair: str = "이가") -> str:
+    """받침에 따라 조사를 붙인다. pair: "이가", "은는", "을를", "과와"."""
+    if not word:
+        return word
+    c = ord(word[-1]) - 0xAC00
+    has = 0 <= c < 11172 and c % 28 != 0
+    if not (0 <= c < 11172):
+        has = word[-1] in "LMNRlmnr136780"
+    return word + (pair[0] if has else pair[1])
+
+
+# ---------- 이름 검색 ----------
+
+_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[\s\-_.,·:'’()\[\]]", "", s.lower())
+
+
+def _chosung(s: str) -> str:
+    out = []
+    for ch in s:
+        c = ord(ch) - 0xAC00
+        out.append(_CHO[c // 588] if 0 <= c < 11172 else ch)
+    return "".join(out)
+
+
+class Index:
+    """한국어·영어 이름과 id로 찾는 검색 색인."""
+
+    def __init__(self, table: dict, ids=None):
+        self.table = table
+        self.ids = list(ids if ids is not None else table)
+        self.keys: dict[str, str] = {}
+        for i in self.ids:
+            e = table[i]
+            for name in (e["ko"], e["name"], i):
+                self.keys.setdefault(_norm(name), i)
+
+    def exact(self, text: str) -> str | None:
+        return self.keys.get(_norm(text))
+
+    def search(self, text: str, limit: int = 8) -> list[str]:
+        q = _norm(text)
+        if not q:
+            return []
+        if q in self.keys:
+            return [self.keys[q]]
+        scored: dict[str, float] = {}
+        cho_q = all(c in _CHO for c in q)
+        for i in self.ids:
+            e = self.table[i]
+            names = [_norm(e["ko"]), _norm(e["name"])]
+            best = 0.0
+            for n in names:
+                if n.startswith(q):
+                    best = max(best, 3 + len(q) / len(n))
+                elif q in n:
+                    best = max(best, 2 + len(q) / len(n))
+                else:
+                    best = max(best, difflib.SequenceMatcher(None, q, n).ratio())
+            if cho_q:
+                c = _chosung(e["ko"]).replace(" ", "")
+                if c.startswith(q):
+                    best = max(best, 3 + len(q) / len(c))
+                elif q in c:
+                    best = max(best, 2 + len(q) / len(c))
+            if best >= 0.5:
+                scored[i] = best
+        return sorted(scored, key=lambda i: -scored[i])[:limit]
+
+
+SPECIES_INDEX = Index(SPECIES, PLAYABLE)
+for _k, _v in SPECIES.items():  # "메가한카리아스"로 입력해도 원래 포켓몬으로 찾는다
+    if _v.get("mega") and _v.get("base") in SPECIES:
+        for _n in (_v["ko"], _v["name"], _k):
+            SPECIES_INDEX.keys.setdefault(_norm(_n), _v["base"])
+ALL_SPECIES_INDEX = Index(SPECIES)
+MOVE_INDEX = Index(MOVES)
+ITEM_INDEX = Index(ITEMS)
+ABILITY_INDEX = Index(ABILITIES)
+
+
+# ---------- 종 정보 ----------
+
+def base_of(sid: str) -> str:
+    """메가진화·전투 중 폼이라면 원래 형태의 id."""
+    e = SPECIES[sid]
+    return e["base"] if (e.get("mega") or e.get("battleOnly")) and e.get("base") in SPECIES else sid
+
+
+def learnset(sid: str) -> list[str]:
+    return LEARNSETS.get(base_of(sid), [])
+
+
+def mega_of(sid: str, item: str) -> str | None:
+    """sid가 item을 지닐 때 메가진화하는 형태의 id."""
+    for m in SPECIES[sid].get("megas", []):
+        if SPECIES[m].get("item") == item:
+            return m
+    return None
+
+
+def mega_stones(sid: str) -> list[str]:
+    return [SPECIES[m]["item"] for m in SPECIES[sid].get("megas", []) if SPECIES[m].get("item") in ITEMS]

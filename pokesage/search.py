@@ -10,8 +10,8 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
-from .dex import MOVE_FX, MOVES
-from .sim import State, damage, legal, pending, stalled, step, switch_in, winner
+from .sim import (State, accuracy, damage, is_status_move, legal, move_data, pending, stalled, step,
+                  switch_in, winner)
 
 
 GREEDY = 0.8  # 상대가 '뻔한 수'(최대 피해 기술)를 둘 것으로 보는 기본 확률(아레나 측정으로 결정)
@@ -115,16 +115,20 @@ def _outcomes(s: State, side: int, act: tuple, full: bool) -> list[tuple]:
     """행동의 (확률, 명중 여부, 부가 효과 발동 여부) 목록. full이면 부가 효과까지 나눈다."""
     if act[0] != "move":
         return [(1.0, None, None)]
-    name = s.mon(side).moves[act[1]]
-    _t, cat, _pw, acc, _pr = MOVES[name]
-    fx = MOVE_FX.get(name, {})
-    acc = 1.0 if cat == "Z" and "status" not in fx else acc / 100
+    me, foe = s.mon(side), s.mon(1 - side)
+    mid = "struggle" if act[1] < 0 or act[1] >= len(me.moves) else me.moves[act[1]]
+    mv = move_data(mid)
+    if mv["cat"] == "Z" and mv["target"] not in ("normal", "any", "allAdjacentFoes", "adjacentFoe"):
+        acc = 1.0
+    else:
+        acc = min(100.0, accuracy(me, foe, mid, s)) / 100
     c = 0.0
-    if full and cat != "Z":
-        if "flinch" in fx:
-            c = fx["flinch"] / 100
-        elif ("status" in fx or "foe" in fx) and fx.get("chance", 100) < 100:
-            c = fx["chance"] / 100
+    if full and mv["cat"] != "Z" and me.ability != "sheerforce":
+        for sec in mv.get("secondaries", ()):
+            ch = sec.get("chance", 100) * (2 if me.ability == "serenegrace" else 1)
+            if ch < 100:
+                c = ch / 100
+                break
     outs = [(1 - acc, False, None)] if acc < 1 else []
     if c:
         outs += [(acc * c, True, True), (acc * (1 - c), True, False)]
@@ -159,12 +163,11 @@ def _greedy_col(s: State, B: list[tuple]) -> int:
     me, foe = s.mon(1), s.mon(0)
     best, best_d = 0, -1.0
     for j, (kind, i) in enumerate(B):
-        if kind == "move":
-            mv = MOVES[me.moves[i]]
-            if mv[1] != "Z":
-                d = min(damage(me, foe, me.moves[i], 92), foe.hp) * mv[3]
-                if d > best_d:
-                    best, best_d = j, d
+        if kind == "move" and 0 <= i < len(me.moves) and not is_status_move(me.moves[i]):
+            mid = me.moves[i]
+            d = min(damage(me, foe, mid, 92, s=s, aside=1), foe.hp) * min(100.0, accuracy(me, foe, mid, s))
+            if d > best_d:
+                best, best_d = j, d
     return best
 
 

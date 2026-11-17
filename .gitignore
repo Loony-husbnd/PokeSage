@@ -1,4 +1,6 @@
 kibo/
+teams/
+raw_data/
 __pycache__/
 .pytest_cache/
 *.egg-info/

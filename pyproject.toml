@@ -1,8 +1,14 @@
 [project]
 name = "pokesage"
-version = "0.2.0"
-description = "포챔스 턴별 최선수 추천 및 기보 기록 도구"
+version = "0.3.0"
+description = "포챔스(포켓몬 챔피언스) 싱글 배틀 턴별 최선수 추천 및 기보 기록 도구"
 requires-python = ">=3.10"
 
 [project.scripts]
 pokesage = "pokesage.cli:run"
+
+[tool.setuptools]
+packages = ["pokesage"]
+
+[tool.setuptools.package-data]
+pokesage = ["data/*.json"]
