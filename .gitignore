@@ -1,4 +1,7 @@
 kibo/
+teams/
 __pycache__/
 .pytest_cache/
 *.egg-info/
+engine/.showdown/
+node_modules/

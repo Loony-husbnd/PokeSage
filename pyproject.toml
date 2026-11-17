@@ -1,8 +1,11 @@
 [project]
 name = "pokesage"
-version = "0.1.0"
-description = "포챔스 턴별 최선수 추천 및 기보 기록 도구"
+version = "0.2.0"
+description = "포켓몬 챔피언스 턴별 최선수 추천 (Showdown 시뮬레이터 + 몬테카를로)"
 requires-python = ">=3.10"
 
 [project.scripts]
-pokesage = "pokesage.cli:run"
+pokesage = "pokesage.__main__:main"
+
+[tool.setuptools]
+packages = ["pokesage"]
